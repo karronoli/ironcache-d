@@ -1,4 +1,4 @@
-IronCache service wrapper by curl w/o iron.json policy.
+IronCache service wrapper by curl.
 ===
 
 ## See_also
@@ -14,14 +14,15 @@ karronoli
 karronoli 2015-
 
 ## Date
-2015-Jan-23
+2015-Jan-24
 
-## Examples:
+## Examples
 ```
    import iron.cache;
+   import std.json;
    const prjid = "...", token = "...";
    auto iron = new IronCache(prjid, token);
-   iron.put("myname", "mykey", "myvalue");
-   JSONValue json = iron.get("myname", "mykey");
-   assert(json["value"].str == "myvalue");
+   iron.put("名前", "キー", "値");
+   JSONValue json = iron.get("名前", "キー");
+   assert(json["value"].str == "値");
 ```

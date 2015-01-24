@@ -1,7 +1,7 @@
 // Written in the D programming language
 
 /**
-   IronCache service wrapper by curl w/o iron.json policy.
+   IronCache service wrapper by curl
 
    See_also
    - $(LINK http://dev.iron.io/cache/reference/api/)
@@ -26,6 +26,7 @@ module iron.cache;
 import core.time;
 import std.json;
 import curl = std.net.curl;
+import std.string : format;
 import std.uri : encodeComponent;
 debug {
   import std.stdio;
@@ -34,7 +35,7 @@ debug {
 class IronCache
 {
   protected string base;
-  protected curl.HTTP client;
+  protected curl.HTTP delegate() client;
   static const DEFAULT_HOST = "https://cache-aws-us-east-1.iron.io:443";
   static const DEFAULT_API_VERSION = "1";
   static const DEFAULT_TIMEOUT = 3.seconds;
@@ -42,25 +43,28 @@ class IronCache
   static const MAX_KEY_LENGTH = 250;
   static const MAX_VALUE_SIZE = 1000000;
 
-  this(const string projectId, const string token, const string host = null)
+  this(in string projectId, in string token, in string host = null)
   {
     this.base = (host? host: DEFAULT_HOST)
       ~ '/' ~ DEFAULT_API_VERSION
       ~ "/projects/" ~ projectId ~ "/caches";
-    this.client = curl.HTTP();
-    this.client.operationTimeout(DEFAULT_TIMEOUT);
-    this.client.addRequestHeader("Content-Type", "application/json");
-    this.client.addRequestHeader("Authorization", "OAuth " ~ token);
+    this.client = () {
+      auto curl = curl.HTTP();
+      curl.operationTimeout(DEFAULT_TIMEOUT);
+      curl.addRequestHeader("Content-Type", "application/json; charset=utf-8");
+      curl.addRequestHeader("Authorization", "OAuth " ~ token);
+      return curl;
+    };
   }
 
   /**
    * Throws: CurlException(bad network), JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#list_caches
    */
-  public JSONValue caches()
+  public JSONValue caches(in uint page = 0)
   {
-    const url = this.base;
-    auto res = curl.get(url, this.client);
+    const url = this.base ~ format("?page=%d", page);
+    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -71,10 +75,10 @@ class IronCache
    * Throws: CurlException(bad network), JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#get_info_about_a_cache
    */
-  public JSONValue caches(const string name)
+  public JSONValue caches(in string name)
   {
-    const url = this.base ~ '/' ~ name;
-    auto res = curl.get(url, this.client);
+    const url = this.base ~ '/' ~ encodeComponent(name);
+    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -82,10 +86,10 @@ class IronCache
   }
 
   /// Throws: CurlException(bad network)
-  public bool clear(const string name)
+  public bool clear(in string name)
   {
-    const url = this.base ~ '/' ~ name ~ "/clear";
-    auto res = curl.post(url, "", this.client);
+    const url = this.base ~ format("/%s/clear", encodeComponent(name));
+    auto res = curl.post(url, "", this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -93,15 +97,29 @@ class IronCache
   }
 
   /// Throws: CurlException(bad network)
-  public bool put(const string name, const string key, const string value)
+  public bool put(in string name, in string key, in string value)
     in {
       assert(key.length <= MAX_KEY_LENGTH);
       assert(value.length <= MAX_VALUE_SIZE);
     }
   body {
-    const url = this.base ~ '/' ~ name ~ "/items/" ~ encodeComponent(key);
+    const url = this.base
+      ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
     auto json = JSONValue(["value" : JSONValue(value)]);
-    auto res = curl.put(url, toJSON(&json), this.client);
+    return this.put(name, key, json);
+  }
+
+  /// Throws: CurlException(bad network)
+  public bool put(in string name, in string key, in JSONValue json)
+    in {
+      assert(key.length <= MAX_KEY_LENGTH);
+      assert("value" in json.object);
+      assert(json["value"].str.length <= MAX_VALUE_SIZE);
+    }
+  body {
+    const url = this.base
+      ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
+    auto res = curl.put(url, toJSON(&json), this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -112,10 +130,11 @@ class IronCache
    * Throws: CurlException(bad network), JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#get_an_item_from_a_cache
    */
-  public JSONValue get(const string name, const string key)
+  public JSONValue get(in string name, in string key)
   {
-    const url = this.base ~ '/' ~ name ~ "/items/" ~ encodeComponent(key);
-    auto res = curl.get(url, this.client);
+    const url = this.base
+      ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
+    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -123,12 +142,13 @@ class IronCache
   }
 
   /// Throws: CurlException(bad network)
-  public bool increment(const string name, const string key, const int amount)
+  public bool increment(in string name, in string key, in int amount)
   {
-    const url = this.base ~ '/' ~ name ~ "/items/" ~ encodeComponent(key)
-      ~ "/increment";
+    const url = this.base
+      ~ format("/%s/items/%s/increment",
+               encodeComponent(name), encodeComponent(key));
     auto json = JSONValue(["amount" : JSONValue(amount)]);
-    auto res = curl.post(url, toJSON(&json), this.client);
+    auto res = curl.post(url, toJSON(&json), this.client());
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -136,18 +156,19 @@ class IronCache
   }
 
   /// Throws: CurlException(bad network)
-  public bool remove(const string name, const string key)
+  public bool remove(in string name, in string key)
   {
-    const url = this.base ~ '/' ~ name ~ "/items/" ~ encodeComponent(key);
-    curl.del(url, this.client);
+    const url = this.base
+      ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
+    curl.del(url, this.client());
     return true;
   }
 
   /// Throws: CurlException(bad network)
-  public bool remove(const string name)
+  public bool remove(in string name)
   {
-    const url = this.base ~ '/' ~ name;
-    curl.del(url, this.client);
+    const url = this.base ~ '/' ~ encodeComponent(name);
+    curl.del(url, this.client());
     return true;
   }
 }
