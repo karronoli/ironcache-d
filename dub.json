@@ -1,5 +1,5 @@
 {
-	"name": "iron-d",
+	"name": "ironcache-d",
 	"targetType": "library",
     "description": "IronCache service wrapper by curl.",
 	"copyright": "Copyright © 2015, karronoli",
