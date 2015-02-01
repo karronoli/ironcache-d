@@ -43,7 +43,8 @@ class IronCache
   static const MAX_KEY_LENGTH = 250;
   static const MAX_VALUE_SIZE = 1000000;
 
-  this(in string projectId, in string token, in string host = null)
+  @trusted
+  this(in string projectId, in string token, in string host = null) nothrow
   {
     this.base = (host? host: DEFAULT_HOST)
       ~ '/' ~ DEFAULT_API_VERSION
@@ -55,6 +56,28 @@ class IronCache
       curl.addRequestHeader("Authorization", "OAuth " ~ token);
       return curl;
     };
+  }
+
+  /**
+   * constructor for iron.json configuration.
+   * Throws: FileException or JSONException without valid file.
+   */
+  @trusted
+  this(in string _path = null)
+  {
+    import std.file : isFile, readText;
+    const path = (_path != null && _path.isFile)? _path: "iron.json";
+    auto config = parseJSON(readText(path));
+    auto host = ("host" in config)? config["host"].str: null;
+    this(config["project_id"].str, config["token"].str, host);
+  }
+
+  unittest
+  {
+    import std.file : FileException;
+    import std.exception : collectException;
+    assert(new IronCache());
+    assert(collectException!FileException(new IronCache("none.json")));
   }
 
   /**
@@ -114,7 +137,6 @@ class IronCache
     in {
       assert(key.length <= MAX_KEY_LENGTH);
       assert("value" in json.object);
-      assert(json["value"].str.length <= MAX_VALUE_SIZE);
     }
   body {
     const url = this.base
@@ -171,4 +193,31 @@ class IronCache
     curl.del(url, this.client());
     return true;
   }
+}
+
+unittest
+{
+  auto name = {
+    import std.range, std.algorithm, std.random, std.ascii, std.conv;
+    return iota(20).map!(_=>randomSample(letters, 1, letters.length)).text;
+  }();
+
+  import std.exception : collectException;
+  import std.net.curl : CurlException;
+  import std.json : JSONValue;
+  auto iron = new IronCache();
+  assert(collectException!CurlException(iron.caches(name)));
+
+  const key1 = "鍵1", key2 = "鍵2", value = "値";
+  assert(iron.put(name, key1, value));
+  assert(iron.put(name, key2, JSONValue(["value": 1])));
+  assert(iron.increment(name, key2, 2));
+  assert(iron.increment(name, key2, -3));
+  assert(iron.get(name, key1)["value"].str == value);
+  assert(iron.get(name, key2)["value"].integer == 0);
+  assert(iron.caches(name)["size"].integer == 2);
+  assert(iron.remove(name, key1));
+  assert(iron.caches(name)["size"].integer == 1);
+  assert(iron.remove(name));
+  assert(collectException!CurlException(iron.caches(name)));
 }

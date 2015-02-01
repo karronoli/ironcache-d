@@ -1,12 +1,12 @@
 {
 	"name": "ironcache-d",
 	"targetType": "library",
-    "description": "IronCache service wrapper by curl.",
+	"description": "IronCache service wrapper by curl.",
 	"copyright": "Copyright © 2015, karronoli",
-    "homepage": "https://github.com/karronoli/ironcache-d",
-    "license": "Boost Software License, Version 1.0",
+	"homepage": "https://github.com/karronoli/ironcache-d",
+	"license": "BSL-1.0",
 	"authors": ["karronoli"],
-    "libs": ["curl"],
+	"libs": ["curl"],
 	"dependencies": {
 	}
 }
