@@ -14,7 +14,7 @@ karronoli
 karronoli 2015-
 
 ## Date
-2015-Jan-24
+2015-Feb-1
 
 ## Examples
 ```
@@ -22,7 +22,8 @@ karronoli 2015-
    import std.json;
    const prjid = "...", token = "...";
    auto iron = new IronCache(prjid, token);
-   iron.put("名前", "キー", "値");
-   JSONValue json = iron.get("名前", "キー");
-   assert(json["value"].str == "値");
+   const name = "名前", key = "キー", val = "値";
+   iron.put(name, key, val);
+   JSONValue json = iron.get(name, key);
+   assert(json["value"].str == val);
 ```
