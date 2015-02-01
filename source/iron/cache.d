@@ -9,7 +9,7 @@
    License:  $(LINK2 http://boost.org/LICENSE_1_0.txt, Boost License 1.0)
    Authors: karronoli
    Copyright: karronoli 2015-
-   Date: 2015-Jan-23
+   Date: 2015-Feb-1
 
    Examples:
    ---
