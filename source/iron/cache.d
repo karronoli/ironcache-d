@@ -253,7 +253,8 @@ class IronCacheException : Exception
 class IronCacheStatusException : IronCacheException
 {
   protected curl.HTTP.StatusLine _status;
-  @property curl.HTTP.StatusLine status() {return this._status;}
+  @safe pure nothrow
+  @property curl.HTTP.StatusLine status() const {return this._status;}
 
   @trusted
   this(curl.HTTP.StatusLine status,
