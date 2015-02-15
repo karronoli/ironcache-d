@@ -7,3 +7,4 @@ install:
 script:
 - dub test -b unittest-cov
 - ./doveralls
+- chmod +x ./doveralls
