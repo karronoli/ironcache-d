@@ -9,7 +9,7 @@
    License:  $(LINK2 http://boost.org/LICENSE_1_0.txt, Boost License 1.0)
    Authors: karronoli
    Copyright: karronoli 2015-
-   Date: 2015-Feb-1
+   Date: 2015-Feb-15
 
    Examples:
    ---
@@ -28,6 +28,7 @@ import std.json;
 import curl = std.net.curl;
 import std.string : format;
 import std.uri : encodeComponent;
+import std.exception : collectException;
 debug {
   import std.stdio;
 }
@@ -75,19 +76,28 @@ class IronCache
   unittest
   {
     import std.file : FileException;
-    import std.exception : collectException;
     assert(new IronCache());
     assert(collectException!FileException(new IronCache("none.json")));
+    auto iron = new IronCache("badprjid", "badtoken");
+    auto e = collectException!IronCacheStatusException(iron.caches());
+    assert(e.status.code == 404, e.toString);
   }
 
   /**
-   * Throws: CurlException(bad network), JSONException(bad response)
+   * Throws:
+   *  IronCacheStatusException(bad network)
+   *  JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#list_caches
    */
+  @trusted
   public JSONValue caches(in uint page = 0)
   {
     const url = this.base ~ format("?page=%d", page);
-    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
+    auto c = this.client();
+    string res;
+    if (auto e = collectException
+        (cast(string)curl.get!(curl.HTTP, ubyte)(url, c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -95,31 +105,43 @@ class IronCache
   }
 
   /**
-   * Throws: CurlException(bad network), JSONException(bad response)
+   * Throws:
+   *  IronCacheStatusException(bad network)
+   *  JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#get_info_about_a_cache
    */
+  @trusted
   public JSONValue caches(in string name)
   {
     const url = this.base ~ '/' ~ encodeComponent(name);
-    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
+    auto c = this.client();
+    string res;
+    if (auto e = collectException
+        (cast(string)curl.get!(curl.HTTP, ubyte)(url, c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
     return parseJSON(res);
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool clear(in string name)
   {
     const url = this.base ~ format("/%s/clear", encodeComponent(name));
-    auto res = curl.post(url, "", this.client());
+    auto c = this.client();
+    char[] res;
+    if (auto e = collectException(curl.post(url, "", c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
     return true;
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool put(in string name, in string key, in string value)
     in {
       assert(key.length <= MAX_KEY_LENGTH);
@@ -132,7 +154,8 @@ class IronCache
     return this.put(name, key, json);
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool put(in string name, in string key, in JSONValue json)
     in {
       assert(key.length <= MAX_KEY_LENGTH);
@@ -141,7 +164,10 @@ class IronCache
   body {
     const url = this.base
       ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
-    auto res = curl.put(url, toJSON(&json), this.client());
+    auto c = this.client();
+    char[] res;
+    if (auto e = collectException(curl.put(url, toJSON(&json), c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
@@ -149,64 +175,109 @@ class IronCache
   }
 
   /**
-   * Throws: CurlException(bad network), JSONException(bad response)
+   * Throws:
+   *  IronCacheStatusException(bad network)
+   *  JSONException(bad response)
    * Returns: http://dev.iron.io/cache/reference/api/#get_an_item_from_a_cache
    */
+  @trusted
   public JSONValue get(in string name, in string key)
   {
     const url = this.base
       ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
-    auto res = cast(char[])curl.get!(curl.HTTP, ubyte)(url, this.client());
+    auto c = this.client();
+    string res;
+    if (auto e = collectException
+        (cast(string)curl.get!(curl.HTTP, ubyte)(url, c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
     return parseJSON(res);
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool increment(in string name, in string key, in int amount)
   {
     const url = this.base
       ~ format("/%s/items/%s/increment",
                encodeComponent(name), encodeComponent(key));
     auto json = JSONValue(["amount" : JSONValue(amount)]);
-    auto res = curl.post(url, toJSON(&json), this.client());
+    auto c = this.client();
+    char[] res;
+    if (auto e = collectException(curl.post(url, toJSON(&json), c), res))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
     }
     return true;
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool remove(in string name, in string key)
   {
     const url = this.base
       ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
-    curl.del(url, this.client());
+    auto c = this.client();
+    if (auto e = collectException(curl.del(url, c)))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     return true;
   }
 
-  /// Throws: CurlException(bad network)
+  /// Throws: IronCacheStatusException(bad network)
+  @trusted
   public bool remove(in string name)
   {
     const url = this.base ~ '/' ~ encodeComponent(name);
-    curl.del(url, this.client());
+    auto c = this.client();
+    if (auto e = collectException(curl.del(url, c)))
+      throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     return true;
   }
 }
 
+class IronCacheException : Exception
+{
+  @safe pure nothrow
+  this(string msg,
+       string file = __FILE__,
+       size_t line = __LINE__,
+       Throwable next = null)
+  {
+    super(msg, file, line, next);
+  }
+}
+
+class IronCacheStatusException : IronCacheException
+{
+  protected curl.HTTP.StatusLine _status;
+  @property curl.HTTP.StatusLine status() {return this._status;}
+
+  @trusted
+  this(curl.HTTP.StatusLine status,
+       string file = __FILE__,
+       size_t line = __LINE__,
+       Throwable next = null)
+  {
+    this._status = status;
+    super(status.toString(), file, line, next);
+  }
+}
+alias ICSException = IronCacheStatusException;
+
 unittest
 {
   auto name = {
-    import std.range, std.algorithm, std.random, std.ascii, std.conv;
-    return iota(20).map!(_=>randomSample(letters, 1, letters.length)).text;
+    import std.random, std.ascii, std.conv;
+    auto n = "名前", rndGen = Random(unpredictableSeed);
+    return n ~ randomSample(letters.dtext, 10, rndGen).text;
   }();
 
-  import std.exception : collectException;
-  import std.net.curl : CurlException;
-  import std.json : JSONValue;
   auto iron = new IronCache();
-  assert(collectException!CurlException(iron.caches(name)));
+  auto e = collectException!IronCacheStatusException(iron.caches(name));
+  assert(e.status.code == 404, e.toString);
 
   const key1 = "鍵1", key2 = "鍵2", value = "値";
   assert(iron.put(name, key1, value));
@@ -219,5 +290,5 @@ unittest
   assert(iron.remove(name, key1));
   assert(iron.caches(name)["size"].integer == 1);
   assert(iron.remove(name));
-  assert(collectException!CurlException(iron.caches(name)));
+  assert(collectException!IronCacheStatusException(iron.caches(name)));
 }
