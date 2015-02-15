@@ -4,7 +4,7 @@ before_install:
   -in iron.json.enc -out iron.json -d
 install:
 - wget -O doveralls https://github.com/ColdenCullen/doveralls/releases/download/v1.1.2/doveralls_travis
+- chmod +x ./doveralls
 script:
 - dub test -b unittest-cov
 - ./doveralls
-- chmod +x ./doveralls
