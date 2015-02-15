@@ -1,2 +1,4 @@
 language: d
-
+before_install:
+- openssl aes-256-cbc -K $encrypted_0432792c4c40_key -iv $encrypted_0432792c4c40_iv
+  -in iron.json.enc -out iron.json -d
