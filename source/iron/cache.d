@@ -79,8 +79,17 @@ class IronCache
     assert(new IronCache());
     assert(collectException!FileException(new IronCache("none.json")));
     auto iron = new IronCache("badprjid", "badtoken");
-    auto e = collectException!IronCacheStatusException(iron.caches());
+    auto e = collectException!ICSException(iron.caches());
     assert(e.status.code == 404, e.toString);
+    auto name = "badname";
+    assert(collectException!ICSException(iron.caches(name)));
+    assert(collectException!ICSException(iron.caches(name)));
+    assert(collectException!ICSException(iron.clear(name)));
+    assert(collectException!ICSException(iron.put(name, "k", "v")));
+    assert(collectException!ICSException(iron.get(name, "k")));
+    assert(collectException!ICSException(iron.increment(name, "k", 1)));
+    assert(collectException!ICSException(iron.remove(name, "k")));
+    assert(collectException!ICSException(iron.remove(name)));
   }
 
   /**
@@ -285,11 +294,17 @@ unittest
   assert(iron.put(name, key2, JSONValue(["value": 1])));
   assert(iron.increment(name, key2, 2));
   assert(iron.increment(name, key2, -3));
+
   assert(iron.get(name, key1)["value"].str == value);
   assert(iron.get(name, key2)["value"].integer == 0);
   assert(iron.caches(name)["size"].integer == 2);
+  import std.algorithm : filter;
+  assert(! iron.caches().array.filter!(a => a["name"].str == name).empty);
+
   assert(iron.remove(name, key1));
   assert(iron.caches(name)["size"].integer == 1);
+  assert(iron.clear(name));
+  assert(iron.caches(name)["size"].integer == 0);
   assert(iron.remove(name));
   assert(collectException!IronCacheStatusException(iron.caches(name)));
 }
