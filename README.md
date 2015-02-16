@@ -5,6 +5,7 @@ IronCache service wrapper by curl.
 - [IronCache API Reference | Iron.io Dev Center:](http://dev.iron.io/cache/reference/api/)
 - [![Build Status](https://travis-ci.org/karronoli/ironcache-d.svg?branch=master)](https://travis-ci.org/karronoli/ironcache-d)
 - [![Coverage Status](https://coveralls.io/repos/karronoli/ironcache-d/badge.svg?branch=master)](https://coveralls.io/r/karronoli/ironcache-d?branch=master)
+- [Iron.io Status:](https://status.iron.io/) fail unittest for service status.
 
 ## License
 [Boost License 1.0](http://boost.org/LICENSE_1_0.txt)
