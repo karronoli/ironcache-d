@@ -175,7 +175,7 @@ class IronCache
       ~ format("/%s/items/%s", encodeComponent(name), encodeComponent(key));
     auto c = this.client();
     char[] res;
-    if (auto e = collectException(curl.put(url, toJSON(&json), c), res))
+    if (auto e = collectException(curl.put(url, json.toString, c), res))
       throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
@@ -215,7 +215,7 @@ class IronCache
     auto json = JSONValue(["amount" : JSONValue(amount)]);
     auto c = this.client();
     char[] res;
-    if (auto e = collectException(curl.post(url, toJSON(&json), c), res))
+    if (auto e = collectException(curl.post(url, json.toString, c), res))
       throw new ICSException(c.statusLine, __FILE__, __LINE__, e);
     debug {
       stderr.writefln("[iron]%s: %s", __FUNCTION__, res);
